@@ -90,6 +90,7 @@ class SlackBot:
             print("Responding to message_action")
 
             client = WebClient(token=SLACK_BOT_OAUTH_TOKEN)
+            
             insight = {
                 "link": "{msg_url}".format(msg_url = "https://anyscaleteam.slack.com/archives/" + req_info_json["channel"]["id"] + "/p" + re.sub("[^0-9]", "", req_info_json["message_ts"])),
                 "source": client.users_info(user=req_info_json["message"]["user"])['user']['profile']['real_name'],
@@ -235,7 +236,7 @@ class SlackBot:
 
 from pyngrok import ngrok
 ngrok.set_auth_token(NGROK_AUTH_TOKEN)
-ngrok_tunnel = ngrok.connect(8000)
+ngrok_tunnel = ngrok.connect(8000, bind_tls=True)
 print(ngrok_tunnel.public_url)
 
 slack_bot = SlackBot.bind()
