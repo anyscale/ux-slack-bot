@@ -1,1 +1,4 @@
-- Set an env var `SLACK_BOT_OAUTH_TOKEN` which can be obtained from [here](https://api.slack.com/apps/A042CP6NUBE/oauth?)
+- The necessary tokens (`SLACK_BOT_OAUTH_TOKEN`, `AIRTABLE_API_KEY`) should have been baked into [the cluster env](https://console.anyscale.com/o/anyscale-internal/configurations/app-config-versions/apt_rjkfpv6lbcl3e6gdttjijsrh9q).
+- When developing, run `./ngrok http 8000` to obtain a url to use as the _Request URL_ on [this page](https://api.slack.com/apps/A042CP6NUBE/interactive-messages?).
+- Remember to configure SSO for the SSH key you're using on Workspace since this is an Anyscale private repo.
+- When ready to deploy as an Anyscale Service, download the repo as a ZIP and store on S3 to reference in the YAML file.
