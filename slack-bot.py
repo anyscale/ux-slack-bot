@@ -16,6 +16,7 @@ app = FastAPI()
 print("Initializing slack-bot service")
 SLACK_BOT_OAUTH_TOKEN = os.environ.get('SLACK_BOT_OAUTH_TOKEN')
 AIRTABLE_API_KEY = os.environ.get('AIRTABLE_API_KEY')
+NGROK_AUTH_TOKEN = os.environ.get('NGROK_AUTH_TOKEN')
 
 @serve.deployment
 @serve.ingress(app)
@@ -232,5 +233,9 @@ class SlackBot:
         #     "data": req_info
         # }
 
+from pyngrok import ngrok
+ngrok.set_auth_token(NGROK_AUTH_TOKEN)
+ngrok_tunnel = ngrok.connect(8000)
+print(ngrok_tunnel.public_url)
+
 slack_bot = SlackBot.bind()
-# ray.serve.deployment(runtime_env={"env_vars": {"SLACK_BOT_OAUTH_TOKEN": os.environ.get('SLACK_BOT_OAUTH_TOKEN')}})
