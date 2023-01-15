@@ -30,6 +30,7 @@ class UserPost(BaseModel):
     Message: str  # Raw slack message
     Source: str  # Slack username of person who posted this message
     Link: str # Link to the original Slack message
+    Created_by: str
     
 
 # class UserMetadata(BaseModel):
