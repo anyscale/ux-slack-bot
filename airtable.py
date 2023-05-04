@@ -89,12 +89,16 @@ class UserInsightsAirtable:
             for post in existing_posts
         }
 
+        print(existing_post_ids)
+
         posts_to_create = [
             to_jsonable_dict(post.dict()) for post in posts
             if post.ID not in existing_post_ids
         ]
         print(f"Creating {len(posts_to_create)} posts")
         self.data_table.batch_create(posts_to_create, typecast=True)
+
+        return len(posts_to_create)
 
         # Update existing entries rather than creating a new row
         # posts_to_update = [

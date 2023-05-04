@@ -14,16 +14,21 @@ import html
 app = FastAPI()
 
 print("Initializing slack-bot service")
-SLACK_BOT_OAUTH_TOKEN = os.environ.get('SLACK_BOT_OAUTH_TOKEN')
+# RAY_SLACK_BOT_OAUTH_TOKEN = os.environ.get('RAY_SLACK_BOT_OAUTH_TOKEN')
+# ANYSCALE_SLACK_BOT_OAUTH_TOKEN = os.environ.get('ANYSCALE_SLACK_BOT_OAUTH_TOKEN')
 AIRTABLE_API_KEY = os.environ.get('AIRTABLE_API_KEY')
 NGROK_AUTH_TOKEN = os.environ.get('NGROK_AUTH_TOKEN')
+# print("1")
+# print(os.environ.get('ANYSCALE_SLACK_BOT_OAUTH_TOKEN'))
 
 def get_user_real_name(client, user_id):
+    print("getting user real name")
     # Fetch the user's real name if not yet in the record
     return client.users_info(
             user=user_id)['user']['profile']['real_name']
 
 def preprocess_message(slack_client, message):        
+    print("preprocessing message")
     # Replace user id with real name
     user_ids = re.findall("(?<=\<@)[A-Z0-9]+(?=\>)", message)
     if len(user_ids) > 0:
@@ -58,21 +63,23 @@ def write_to_airtable(insight):
 
     airtable = UserInsightsAirtable(
         api_key = AIRTABLE_API_KEY,
-        raw_table_name = "Feedback from various channels"
+        raw_table_name = "Slack"
     )
-    airtable.create_or_update_rows(posts)
-    return
+    num_posts_to_create = airtable.create_or_update_rows(posts)
+    return num_posts_to_create
 
 @ray.remote
-def handle_request(req_info_json):
+def handle_request(req_info_json, slack_token, slack_url_prefix):
     # Render the modal for composing insight
     if (req_info_json["type"] == "message_action"):
         print("Responding to message_action")
 
-        client = WebClient(token=SLACK_BOT_OAUTH_TOKEN)
+        print(slack_token)
+        client = WebClient(token=slack_token)
+        print("Acquired slack web client")
         
         insight = {
-            "link": "{msg_url}".format(msg_url = "https://anyscaleteam.slack.com/archives/" + req_info_json["channel"]["id"] + "/p" + re.sub("[^0-9]", "", req_info_json["message_ts"])),
+            "link": "{msg_url}".format(msg_url = slack_url_prefix + req_info_json["channel"]["id"] + "/p" + re.sub("[^0-9]", "", req_info_json["message_ts"])),
             "source": get_user_real_name(client, req_info_json["message"]["user"]),
             "timestamp": req_info_json["message_ts"],
             "message": preprocess_message(client, req_info_json["message"]["text"]),
@@ -82,7 +89,8 @@ def handle_request(req_info_json):
         print(insight)
 
         print("Writing to Airtable")
-        write_to_airtable(insight)
+        num_posts_to_create = write_to_airtable(insight)
+        confirmation_title = "*Insight submitted*" if num_posts_to_create > 0 else "*Insight skipped (probably already logged)*"
 
         print("Sending confirmation back to the user")
         blocks = [
@@ -90,7 +98,8 @@ def handle_request(req_info_json):
                 "type": 'section',
                 "text": {
                     "type": 'mrkdwn',
-                    "text": '*Insight submitted.*'
+                    # "text": '*Insight submitted.*'
+                    "text": confirmation_title
                 }
             },
             {
@@ -109,7 +118,7 @@ def handle_request(req_info_json):
             },
         ]
         confirmation = {
-            "token": SLACK_BOT_OAUTH_TOKEN,
+            "token": slack_token,
             "channel": req_info_json["user"]["id"],
             "blocks": json.dumps(blocks)
         }
@@ -121,26 +130,34 @@ def handle_request(req_info_json):
 @serve.deployment
 @serve.ingress(app)
 class SlackBot:
+    ANYSCALE_SLACK_BOT_OAUTH_TOKEN = os.environ.get('ANYSCALE_SLACK_BOT_OAUTH_TOKEN')
+    RAY_SLACK_BOT_OAUTH_TOKEN = os.environ.get('RAY_SLACK_BOT_OAUTH_TOKEN')
 
     @app.get("/healthcheck")
     def healthcheck(self):
         return
 
-    @app.post("/slack/events")
+    @app.post("/anyscale/events")
     async def on_event(self, event: Request):
         req_info = await event.body()
         req_info_json = json.loads(re.sub("payload=", "", unquote(req_info)))
         print("Received request")
-        handle_request.remote(req_info_json)
+        handle_request.remote(req_info_json, self.ANYSCALE_SLACK_BOT_OAUTH_TOKEN, "https://anyscaleteam.slack.com/archives/")
         return Response()
 
+    @app.post("/ray/events")
+    async def on_event(self, event: Request):
+        req_info = await event.body()
+        req_info_json = json.loads(re.sub("payload=", "", unquote(req_info)))
+        print("Received request")
+        handle_request.remote(req_info_json, self.RAY_SLACK_BOT_OAUTH_TOKEN, "https://ray-distributed.slack.com/archives/")
+        return Response()        
 
 
-
-
-from pyngrok import ngrok
-ngrok.set_auth_token(NGROK_AUTH_TOKEN)
-ngrok_tunnel = ngrok.connect(8000, bind_tls=True)
-print(ngrok_tunnel.public_url)
+# Uncomment if running as a Service
+# from pyngrok import ngrok
+# ngrok.set_auth_token(NGROK_AUTH_TOKEN)
+# ngrok_tunnel = ngrok.connect(8000, bind_tls=True)
+# print(ngrok_tunnel.public_url)
 
 slack_bot = SlackBot.bind()
