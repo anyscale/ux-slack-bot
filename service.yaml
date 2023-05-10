@@ -1,0 +1,9 @@
+name: ux-dashboard-slack-bot
+project_id: prj_ll9hdy1srfxm4c2yn9n9hnd87b
+compute_config: ux-dashboard-6-no-custodian
+cluster_env: ux-dashboard:6
+ray_serve_config:
+  import_path: slack-bot:slack_bot
+  runtime_env: 
+    working_dir: https://sijie-test.s3.us-west-2.amazonaws.com/service-working-dir/ux-dashboard.zip
+
